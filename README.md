@@ -32,6 +32,55 @@ Hierbei gilt, dass bei einer debmatic oder piVCCU3 Installation immer nur ein Fu
 * Erkennung des Funkmoduls und Ausgabe von Typ, Seriennummer, Funkadresse und SGTIN in der WebUI
 * Regelmäßige Prüfung auf Firmwareupdates
 * Werksreset per Taster
+* REST-API zum Auslesen des System- und Funkmodulstatus (siehe unten)
+* MQTT Anbindung inkl. optionaler Home Assistant Discovery (siehe unten)
+
+### REST-API
+Der Status kann ohne Anmeldung per `GET http://<hb-rf-eth>/api/v1/status` als JSON abgerufen werden:
+
+```json
+{
+  "device": {
+    "serial": "8CAAB5AA186B",
+    "hostname": "HB-RF-ETH-AA186B",
+    "boardType": "REV 1.10 PUB",
+    "firmwareVersion": "1.3.0",
+    "latestFirmwareVersion": "1.3.0",
+    "uptime": 86400,
+    "cpuUsage": 1.95,
+    "memoryUsage": 41.71,
+    "ipAddress": "192.168.20.10"
+  },
+  "ccu": {
+    "connected": true,
+    "address": "192.168.20.2"
+  },
+  "radioModule": {
+    "detected": true,
+    "type": "HM-MOD-RPI-PCB",
+    "serial": "OEQ0607369",
+    "bidCosRadioMAC": "0x59D9A9",
+    "hmIPRadioMAC": "0xBE8379",
+    "sgtin": "3014F711A061A7D70992AC89",
+    "firmwareVersion": "1.4.1"
+  }
+}
+```
+
+* `uptime` in Sekunden, `cpuUsage` und `memoryUsage` in Prozent
+* `ccu.connected` ist `true`, solange eine CCU (debmatic / piVCCU3) per raw-uart verbunden ist, `ccu.address` ist dann ihre IP Adresse
+
+### MQTT
+MQTT wird in der WebUI unter Einstellungen aktiviert (Broker, Port, optional Benutzer/Passwort, Topic Präfix, Sendeintervall, Home Assistant Discovery). Änderungen werden nach einem Neustart aktiv.
+
+| Topic | Inhalt |
+| --- | --- |
+| `<präfix>/status` | `online` bzw. `offline` (retained, `offline` als Last Will) |
+| `<präfix>/state` | JSON, identisch zu `/api/v1/status` (retained) |
+
+Der Präfix ist standardmäßig `hb-rf-eth/<Seriennummer>`. Der Status wird im eingestellten Intervall (Standard 60 Sekunden) und zusätzlich sofort bei einer Verbindung oder Trennung der CCU gesendet.
+
+Ist die Home Assistant Discovery aktiv, werden unter `homeassistant/...` Konfigurationen gesendet, sodass Home Assistant das HB-RF-ETH automatisch als Gerät mit Sensoren (u.a. CCU verbunden, Funkmodultyp, Seriennummer, Funkadressen, SGTIN, CPU/Speicher, Uptime) anlegt.
 
 ### Bekannte Einschränkungen
 * Nach einem Neustart der Platine (z.B. bei Stromausfall) findet kein automatischer Reconnect statt, in diesem Fall muss die CCU Software daher neu gestartet werden.
